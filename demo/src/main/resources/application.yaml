@@ -1,0 +1,25 @@
+server:
+    port: 8080
+spring:
+  application:
+    name: authen-service
+  datasource:
+    url: jdbc:mysql://127.0.0.1:3306/mydb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+jwt:
+  issuer: "http://auth-server:8080"
+  access-token-expiration-minutes: 30
+  refresh-token-expiration-days: 1
+security:
+  verification:
+    max-attempts: 5
+    lockout-duration-minutes: 15
