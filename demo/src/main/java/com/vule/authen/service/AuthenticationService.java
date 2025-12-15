@@ -109,30 +109,22 @@ public class AuthenticationService {
 
     @Transactional
     public AuthenticationResponse refreshToken(RefreshRequest request) throws ParseException, JOSEException {
-        // 1) Verify refresh token chữ ký + exp
-        // Bạn cần dùng đúng hàm verify của bạn (nếu có)
-        // Ví dụ bạn có hàm: verifyToken(refreshToken, true/false)
-        // Nếu chưa có, mình ghi “khung”:
         SignedJWT signedJWT = SignedJWT.parse(request.getRefreshToken());
 
-        // TODO: verify signature (quan trọng)
-        // if (!signedJWT.verify(verifier)) throw new AppException(ErrorCode.UNAUTHENTICATED);
 
         JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
 
-        // check exp
         if (claims.getExpirationTime() == null || claims.getExpirationTime().toInstant().isBefore(Instant.now())) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED); // refresh hết hạn
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
         String jti = claims.getJWTID();
-        String userId = claims.getStringClaim("user_id"); // bạn nên set claim userId khi generateRefreshToken
+        String userId = claims.getStringClaim("user_id");
 
         if (jti == null || userId == null) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
-        // 2) Check DB theo jti
         RefreshToken dbToken = refreshTokenRepository.findByJti(jti)
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
 
@@ -144,25 +136,21 @@ public class AuthenticationService {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
-        // chống tráo token: db userId phải match token userId
         if (!userId.equals(dbToken.getUserId())) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
-        // 3) Rotate: revoke refresh token cũ
         refreshTokenRepository.revokeByJti(jti);
 
         System.out.println("jti=" + jti + ", userId=" + userId);
         System.out.println("dbToken=" + refreshTokenRepository.findByJti(jti));
 
-        // 4) Issue token mới
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         String newAccessToken = generateToken(user);
         String newRefreshToken = generateRefreshToken(user);
 
-        // 5) Lưu refresh token mới vào DB
         JWTClaimsSet newClaims = JWTClaimsSet.parse(SignedJWT.parse(newRefreshToken).getJWTClaimsSet().toJSONObject());
 
         RefreshToken newEntity = new RefreshToken();
