@@ -34,3 +34,8 @@ target/
 # OS
 .DS_Store
 
+demo/.gitattributes
+demo/.mvn/
+demo/HELP.md
+demo/mvnw
+demo/mvnw.cmd

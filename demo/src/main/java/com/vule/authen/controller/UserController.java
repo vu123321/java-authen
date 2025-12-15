@@ -21,8 +21,14 @@ public class UserController {
 
     @GetMapping("/about-me")
     ApiResponse<UserResponse> getMyInfo() {
+        log.info("[USER][ABOUT_ME] request received");
+
+        UserResponse response = userService.getMyInfo();
+
+        log.info("[USER][ABOUT_ME] request success");
+
         return ApiResponse.<UserResponse>builder()
-                .result(userService.getMyInfo())
+                .result(response)
                 .message("Success")
                 .build();
     }

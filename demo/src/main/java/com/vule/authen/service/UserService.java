@@ -40,11 +40,18 @@ public class UserService {
 
     public UserResponse getMyInfo() {
         var context = SecurityContextHolder.getContext();
-        String name = context.getAuthentication().getName();
+        String username = context.getAuthentication().getName();
 
-        User user = userRepository.findByUsername(name).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        log.info("[USER][ABOUT_ME] request by username={}", username);
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> {
+                    log.warn("[USER][ABOUT_ME] user not found username={}", username);
+                    return new AppException(ErrorCode.USER_NOT_EXISTED);
+                });
+
+        log.info("[USER][ABOUT_ME] user found id={}", user.getId());
 
         return userMapper.toUserResponse(user);
     }
-
 }

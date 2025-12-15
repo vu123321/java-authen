@@ -58,44 +58,36 @@ public class AuthenticationService {
     @Value("${jwt.refreshable-duration}")
     protected long REFRESHABLE_DURATION;
 
-    public IntrospectResponse introspect(IntrospectRequest request) throws JOSEException, ParseException {
-        var token = request.getToken();
-        boolean isValid = true;
-
-        try {
-            verifyToken(token, false);
-        } catch (AppException e) {
-            isValid = false;
-        }
-
-        return IntrospectResponse.builder().valid(isValid).build();
-    }
-
     public AuthenticationResponse authenticate(AuthenticationRequest request) throws ParseException {
-        PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(10);
+
+        log.info("[AUTHENTICATE] username={}", request.getUsername());
+
         var user = userRepository
                 .findByUsername(request.getUsername())
-                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+                .orElseThrow(() -> {
+                    log.warn("[AUTHENTICATE] username={} not found", request.getUsername());
+                    return new AppException(ErrorCode.UNAUTHENTICATED);
+                });
 
         boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
 
-        if (!authenticated) throw new AppException(ErrorCode.UNAUTHENTICATED);
+        if (!authenticated) {
+            log.warn("[AUTHENTICATE] username={} wrong password", request.getUsername());
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        log.info("[AUTHENTICATE] username={} authenticated successfully", request.getUsername());
 
         var token = generateToken(user);
-
         var refreshToken = generateRefreshToken(user);
 
-        JWTClaimsSet claims = JWTClaimsSet.parse(SignedJWT.parse(refreshToken).getJWTClaimsSet().toJSONObject());
-
-        RefreshToken refreshTokenEntity = new RefreshToken();
-        refreshTokenEntity.setUserId(user.getId());
-        refreshTokenEntity.setJti(claims.getJWTID());
-        refreshTokenEntity.setExpiredAt(claims.getExpirationTime().toInstant());
-
-        refreshTokenRepository.save(refreshTokenEntity);
-
-        return AuthenticationResponse.builder().token(token).refreshToken(refreshToken).authenticated(true).build();
+        return AuthenticationResponse.builder()
+                .token(token)
+                .refreshToken(refreshToken)
+                .authenticated(true)
+                .build();
     }
+
 
     @Transactional
     public void logout(String userId) {
@@ -111,6 +103,7 @@ public class AuthenticationService {
     public AuthenticationResponse refreshToken(RefreshRequest request) throws ParseException, JOSEException {
         SignedJWT signedJWT = SignedJWT.parse(request.getRefreshToken());
 
+        log.info("[REFRESH] refresh token request received");
 
         JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
 
@@ -121,12 +114,17 @@ public class AuthenticationService {
         String jti = claims.getJWTID();
         String userId = claims.getStringClaim("user_id");
 
+        log.info("[REFRESH] jti={}, userId={}", jti, userId);
+
         if (jti == null || userId == null) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
         RefreshToken dbToken = refreshTokenRepository.findByJti(jti)
-                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+                .orElseThrow(() -> {
+                    log.warn("[REFRESH] token not found jti={}", jti);
+                    return new AppException(ErrorCode.UNAUTHENTICATED);
+                });
 
         if (dbToken.isRevoked()) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
@@ -141,9 +139,6 @@ public class AuthenticationService {
         }
 
         refreshTokenRepository.revokeByJti(jti);
-
-        System.out.println("jti=" + jti + ", userId=" + userId);
-        System.out.println("dbToken=" + refreshTokenRepository.findByJti(jti));
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
