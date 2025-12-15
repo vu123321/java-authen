@@ -29,4 +29,5 @@ public class User {
     String firstName;
     LocalDate dob;
     String lastName;
+    String phoneNumber;
 }
