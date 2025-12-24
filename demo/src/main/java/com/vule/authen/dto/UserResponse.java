@@ -1,5 +1,6 @@
 package com.vule.authen.dto;
 
+import com.vule.authen.dto.response.RestaurantResponse;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,11 +12,11 @@ import lombok.Setter;
 @AllArgsConstructor
 public class UserResponse {
 
-    private String username;
-
-    private String firstName;
-
-    private String lastName;
+    private String id;
+    private String userName;
+    private String fullName;
     private String phoneNumber;
-
+    private String address;
+    private String role;
+    private RestaurantResponse restaurant;
 }

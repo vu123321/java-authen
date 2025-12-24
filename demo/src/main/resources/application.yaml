@@ -12,12 +12,12 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
     show-sql: true
     properties:
       hibernate:
         format_sql: true
 jwt:
   signerKey: "323efba8b6dea3819336c924735dd0517c46c6ee9df19d8d3c6f9ac2f6a4dfdc"
-  valid-duration: 10 #in second
+  valid-duration: 600 #in second
   refreshable-duration: 24 # in hours

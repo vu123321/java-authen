@@ -1,51 +1,35 @@
 package com.vule.authen.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Getter
 @Setter
 @Entity
-@Table(name = "user", uniqueConstraints = {
-    @UniqueConstraint(columnNames = "user_name")
-} )
-@NoArgsConstructor
-@AllArgsConstructor
-public class User {
+@Table(
+        name = "restaurants", uniqueConstraints = {
+        @UniqueConstraint(columnNames = "code")
+}
+)
+
+public class Restaurant {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(length = 36)
     private String id;
 
-    @Column(name = "user_name", nullable = false, length = 255)
-    private String userName;
+    @Column(nullable = false, unique = true, length = 50)
+    private String code;
 
-    @Column(nullable = false)
-    private String password;
-
-    @Column(length = 20)
-    private String phone;
+    @Column(nullable = false, length = 255)
+    private String name;
 
     @Column(length = 255)
     private String address;
-
-    @Column(length = 255)
-    private String fullname;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private Role role;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "restaurant_id", nullable = false)
-    private Restaurant restaurant;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -67,3 +51,5 @@ public class User {
         this.updatedAt = LocalDateTime.now();
     }
 }
+
+
