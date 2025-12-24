@@ -33,7 +33,9 @@ public class SecurityConfig {
         httpSecurity.authorizeHttpRequests(request -> request.requestMatchers(HttpMethod.POST, PUBLIC_ENDPOINTS)
                 .permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
-                .requestMatchers(HttpMethod.GET, "/api/users/about-me").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/user/about-me").hasAnyRole("STAFF", "MANAGER")
+                .requestMatchers(HttpMethod.GET, "/api/ingredients/**").hasAnyRole("STAFF", "MANAGER")
+                .requestMatchers(HttpMethod.POST, "/api/auth/users").hasRole("MANAGER")
                 .anyRequest()
                 .authenticated());
 
@@ -63,7 +65,8 @@ public class SecurityConfig {
     @Bean
     JwtAuthenticationConverter jwtAuthenticationConverter() {
         JwtGrantedAuthoritiesConverter jwtGrantedAuthoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        jwtGrantedAuthoritiesConverter.setAuthorityPrefix("");
+        jwtGrantedAuthoritiesConverter.setAuthoritiesClaimName("role");
+        jwtGrantedAuthoritiesConverter.setAuthorityPrefix("ROLE_");
 
         JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
         jwtAuthenticationConverter.setJwtGrantedAuthoritiesConverter(jwtGrantedAuthoritiesConverter);

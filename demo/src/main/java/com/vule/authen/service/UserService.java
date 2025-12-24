@@ -44,7 +44,7 @@ public class UserService {
 
         log.info("[USER][ABOUT_ME] request by username={}", username);
 
-        User user = userRepository.findByUsername(username)
+        User user = userRepository.findByUserName(username)
                 .orElseThrow(() -> {
                     log.warn("[USER][ABOUT_ME] user not found username={}", username);
                     return new AppException(ErrorCode.USER_NOT_EXISTED);

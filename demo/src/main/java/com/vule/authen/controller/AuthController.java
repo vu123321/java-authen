@@ -1,17 +1,18 @@
 package com.vule.authen.controller;
 
 import com.nimbusds.jose.JOSEException;
-import com.vule.authen.dto.request.*;
+import com.vule.authen.dto.request.AuthenticationRequest;
+import com.vule.authen.dto.request.RefreshRequest;
+import com.vule.authen.dto.request.StaffCreationRequest;
+import com.vule.authen.dto.request.UserCreationRequest;
 import com.vule.authen.dto.response.ApiResponse;
 import com.vule.authen.dto.response.AuthenticationResponse;
-import com.vule.authen.dto.response.IntrospectResponse;
 import com.vule.authen.exception.UnauthorizedException;
 import com.vule.authen.service.AuthenticationService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -72,11 +73,21 @@ public class AuthController {
 
     @PostMapping("/register")
     ApiResponse<?> registerUser(@RequestBody UserCreationRequest request) throws UnauthorizedException {
-        log.info("[AUTH][REGISTER] username={}", request.getUsername());
+        log.info("[AUTH][REGISTER] username={}", request.getUserName());
 
         var result = authenticationService.register(request);
 
-        log.info("[AUTH][REGISTER] username={} -> success", request.getUsername());
+        log.info("[AUTH][REGISTER] username={} -> success", request.getUserName());
+        return ApiResponse.builder().message(result).build();
+    }
+
+    @PostMapping("/users")
+    ApiResponse<?> createStaff(@RequestBody StaffCreationRequest request) throws UnauthorizedException {
+        log.info("[AUTH][CREATE] username={}", request.getUserName());
+
+        var result = authenticationService.createStaff(request);
+
+        log.info("[AUTH][CREATE] username={} -> success", request.getUserName());
         return ApiResponse.builder().message(result).build();
     }
 }

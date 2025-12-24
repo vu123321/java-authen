@@ -1,5 +1,6 @@
 package com.vule.authen.repository;
 
+import com.vule.authen.entity.Restaurant;
 import com.vule.authen.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -7,10 +8,7 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface RestaurantRepository extends JpaRepository<Restaurant, String> {
 
-    Optional<User> findByUserName(String username);
-    boolean existsByUserName(String username);
-    Optional<User> findById(String username);
-
+    boolean existsByCode(String code);
 }

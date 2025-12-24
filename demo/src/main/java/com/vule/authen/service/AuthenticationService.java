@@ -3,20 +3,21 @@ package com.vule.authen.service;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
+import com.nimbusds.jose.shaded.gson.Gson;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import com.vule.authen.configuration.CustomJwtDecoder;
 import com.vule.authen.dto.request.*;
 import com.vule.authen.dto.response.AuthenticationResponse;
-import com.vule.authen.dto.response.IntrospectResponse;
-import com.vule.authen.entity.InvalidatedToken;
 import com.vule.authen.entity.RefreshToken;
+import com.vule.authen.entity.Restaurant;
+import com.vule.authen.entity.Role;
 import com.vule.authen.entity.User;
 import com.vule.authen.exception.AppException;
 import com.vule.authen.exception.ErrorCode;
 import com.vule.authen.exception.UnauthorizedException;
 import com.vule.authen.repository.InvalidatedTokenRepository;
 import com.vule.authen.repository.RefreshTokenRepository;
+import com.vule.authen.repository.RestaurantRepository;
 import com.vule.authen.repository.UserRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -24,9 +25,8 @@ import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +45,7 @@ public class AuthenticationService {
     InvalidatedTokenRepository invalidatedTokenRepository;
     PasswordEncoder passwordEncoder;
     RefreshTokenRepository refreshTokenRepository;
+    RestaurantRepository restaurantRepository;
 
     @NonFinal
     @Value("${jwt.signerKey}")
@@ -63,7 +64,7 @@ public class AuthenticationService {
         log.info("[AUTHENTICATE] username={}", request.getUsername());
 
         var user = userRepository
-                .findByUsername(request.getUsername())
+                .findByUserName(request.getUsername())
                 .orElseThrow(() -> {
                     log.warn("[AUTHENTICATE] username={} not found", request.getUsername());
                     return new AppException(ErrorCode.UNAUTHENTICATED);
@@ -166,7 +167,7 @@ public class AuthenticationService {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
 
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
-                .subject(user.getUsername())
+                .subject(user.getUserName())
                 .issuer("vule@gmail.com")
                 .issueTime(new Date())
                 .expirationTime(new Date(
@@ -175,7 +176,8 @@ public class AuthenticationService {
                 .claim("customClaim", "Custom")
                 .claim("user_id", user.getId())
                 .claim("type", "access_token")
-                .claim("user_name", user.getUsername())
+                .claim("user_name", user.getUserName())
+                .claim("role", user.getRole().name())
                 .build();
 
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());
@@ -195,7 +197,7 @@ public class AuthenticationService {
         JWSHeader header = new JWSHeader(JWSAlgorithm.HS512);
 
         JWTClaimsSet jwtClaimsSet = new JWTClaimsSet.Builder()
-                .subject(user.getUsername())
+                .subject(user.getUserName())
                 .issuer("vule@gmail.com")
                 .issueTime(new Date())
                 .expirationTime(new Date(
@@ -203,6 +205,7 @@ public class AuthenticationService {
                 .jwtID(UUID.randomUUID().toString())
                 .claim("customClaim", "Custom")
                 .claim("type", "refresh_token")
+                .claim("role", user.getRole().name())
                 .claim("user_id", user.getId())
                 .build();
 
@@ -243,20 +246,69 @@ public class AuthenticationService {
         return signedJWT;
     }
 
-    public String register(UserCreationRequest userCreationRequest) {
-        if (userRepository.existsByUsername(userCreationRequest.getUsername())) {
+    @Transactional
+    public String register(UserCreationRequest request) {
+
+        if (userRepository.existsByUserName(request.getUserName())) {
             throw new UnauthorizedException();
         }
 
+        if (restaurantRepository.existsByCode(request.getRestaurantCode())) {
+            throw new UnauthorizedException();
+        }
+
+        Restaurant restaurant = new Restaurant();
+        restaurant.setCode(request.getRestaurantCode());
+        restaurant.setName(request.getRestaurantName());
+        restaurant.setAddress(request.getRestaurantAddress());
+        restaurant = restaurantRepository.save(restaurant);
+
         User user = new User();
-        user.setUsername(userCreationRequest.getUsername());
-        user.setPassword(passwordEncoder.encode(userCreationRequest.getPassword()));
-        user.setFirstName(userCreationRequest.getFirstName());
-        user.setLastName(userCreationRequest.getLastName());
-        user.setDob(userCreationRequest.getDob());
-        user.setPhoneNumber(userCreationRequest.getPhoneNumber());
+        user.setUserName(request.getUserName());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setFullname(request.getFullName());
+        user.setPhone(request.getPhone());
+        user.setAddress(request.getUserAddress());
+        user.setRole(Role.MANAGER);
+        user.setRestaurant(restaurant);
+
         userRepository.save(user);
+
         return "User registered successfully!";
     }
 
+    public String createStaff(StaffCreationRequest request) {
+        String managerUsername = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        log.info("[managerUsername] {}", managerUsername);
+
+        User manager = userRepository.findByUserName(managerUsername)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+
+        log.info("[manager.getRole] ={}", manager.getRole());
+
+        if (manager.getRole() != Role.MANAGER) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+
+        if (userRepository.existsByUserName(request.getUserName())) {
+            log.info("[!existsByUserName] ");
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+
+        }
+
+        User staff = new User();
+        staff.setUserName(request.getUserName());
+        staff.setPassword(passwordEncoder.encode(request.getPassword()));
+        staff.setFullname(request.getFullname());
+        staff.setPhone(request.getPhone());
+        staff.setAddress(request.getAddress());
+        staff.setRole(Role.STAFF);
+
+        staff.setRestaurant(manager.getRestaurant());
+
+        userRepository.save(staff);
+
+        return "Staff created successfully!";
+    }
 }
