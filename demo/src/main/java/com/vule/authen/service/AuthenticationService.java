@@ -3,14 +3,13 @@ package com.vule.authen.service;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
-import com.nimbusds.jose.shaded.gson.Gson;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import com.vule.authen.dto.request.*;
 import com.vule.authen.dto.response.AuthenticationResponse;
 import com.vule.authen.entity.RefreshToken;
 import com.vule.authen.entity.Restaurant;
-import com.vule.authen.entity.Role;
+import com.vule.authen.entity.UserRole;
 import com.vule.authen.entity.User;
 import com.vule.authen.exception.AppException;
 import com.vule.authen.exception.ErrorCode;
@@ -184,7 +183,7 @@ public class AuthenticationService {
                 .claim("user_id", user.getId())
                 .claim("type", "access_token")
                 .claim("user_name", user.getUserName())
-                .claim("role", user.getRole().name())
+                .claim("role", user.getUserRole().name())
                 .build();
 
         Payload payload = new Payload(jwtClaimsSet.toJSONObject());
@@ -229,7 +228,7 @@ public class AuthenticationService {
                 .jwtID(UUID.randomUUID().toString())
                 .claim("customClaim", "Custom")
                 .claim("type", "refresh_token")
-                .claim("role", user.getRole().name())
+                .claim("role", user.getUserRole().name())
                 .claim("user_id", user.getId())
                 .build();
 
@@ -293,7 +292,7 @@ public class AuthenticationService {
         user.setFullname(request.getFullName());
         user.setPhone(request.getPhone());
         user.setAddress(request.getUserAddress());
-        user.setRole(Role.MANAGER);
+        user.setUserRole(UserRole.MANAGER);
         user.setRestaurant(restaurant);
 
         userRepository.save(user);
@@ -309,9 +308,9 @@ public class AuthenticationService {
         User manager = userRepository.findByUserName(managerUsername)
                 .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
 
-        log.info("[manager.getRole] ={}", manager.getRole());
+        log.info("[manager.getRole] ={}", manager.getUserRole());
 
-        if (manager.getRole() != Role.MANAGER) {
+        if (manager.getUserRole() != UserRole.MANAGER) {
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
@@ -327,7 +326,7 @@ public class AuthenticationService {
         staff.setFullname(request.getFullname());
         staff.setPhone(request.getPhone());
         staff.setAddress(request.getAddress());
-        staff.setRole(Role.STAFF);
+        staff.setUserRole(UserRole.STAFF);
 
         staff.setRestaurant(manager.getRestaurant());
 

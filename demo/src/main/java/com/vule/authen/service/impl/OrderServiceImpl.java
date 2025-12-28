@@ -46,15 +46,11 @@ public class OrderServiceImpl implements OrderService {
         String role = jwtAuthenToken.getToken().getClaim("role");
 
         log.info("[ORDER][CREATE] requested by username={}", username);
-        User manager = userRepository.findByUserName(username).orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
 
-        if (!Objects.equals(role, Role.MANAGER.toString())) {
-            log.warn("[ORDER][CREATE] forbidden: user={} role={}", manager.getUserName(), manager.getRole());
+        if (!Objects.equals(role, UserRole.MANAGER.toString())) {
+            log.warn("[ORDER][CREATE] forbidden: user={} role={}", username, role);
             throw new RuntimeException();
         }
-
-        log.info("[ORDER][CREATE] manager id={}, restaurantId={}",
-                manager.getId(), manager.getRestaurant().getId());
 
         Map<String, Integer> merged = new LinkedHashMap<>();
         for (CreateOrderRequest.Item it : createOrderRequest.getItems()) {
@@ -71,6 +67,10 @@ public class OrderServiceImpl implements OrderService {
 
         log.info("[ORDER][CREATE] merged items={}", merged);
 
+
+        User manager = userRepository.findByUserName(username).orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+        log.info("[ORDER][CREATE] manager id={}, restaurantId={}",
+                manager.getId(), manager.getRestaurant().getId());
 
         Order order = new Order();
         order.setOrderCode("ORD-" + System.currentTimeMillis());

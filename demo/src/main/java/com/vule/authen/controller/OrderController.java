@@ -1,5 +1,6 @@
 package com.vule.authen.controller;
 
+import com.vule.authen.annotation.RequirePermission;
 import com.vule.authen.dto.request.CreateOrderRequest;
 import com.vule.authen.dto.response.ApiResponse;
 import com.vule.authen.dto.response.CreateOrderResponse;
@@ -17,6 +18,7 @@ public class OrderController {
     private final OrderService orderService;
 
     @PostMapping
+    @RequirePermission(code = "CREATE")
     public ApiResponse<CreateOrderResponse> create(@RequestBody CreateOrderRequest request) {
         return ApiResponse.<CreateOrderResponse>builder()
                 .code(1000)
