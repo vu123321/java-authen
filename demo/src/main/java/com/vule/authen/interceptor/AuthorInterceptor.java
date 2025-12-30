@@ -1,10 +1,7 @@
 package com.vule.authen.interceptor;
 
 import com.google.gson.Gson;
-import com.vule.authen.entity.PermissionDetail;
-import com.vule.authen.entity.RoleHasPermission;
 import com.vule.authen.repository.PermissionDetailRepository;
-import com.vule.authen.repository.RoleHasPermissionRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -17,7 +14,6 @@ import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
 
-import java.util.Arrays;
 import java.util.List;
 
 @Component
@@ -65,7 +61,6 @@ public class AuthorInterceptor implements HandlerInterceptor {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             return false;
         }
-
         return true;
     }
 
