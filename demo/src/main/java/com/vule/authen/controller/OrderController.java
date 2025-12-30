@@ -19,7 +19,7 @@ public class OrderController {
 
     @PostMapping
     @RequirePermission(code = "CREATE")
-    public ApiResponse<CreateOrderResponse> create(@RequestBody CreateOrderRequest request) {
+    public ApiResponse<CreateOrderResponse> createOrder(@RequestBody CreateOrderRequest request) {
         return ApiResponse.<CreateOrderResponse>builder()
                 .code(1000)
                 .message("Success")

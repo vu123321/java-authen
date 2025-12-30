@@ -1,6 +1,7 @@
 package com.vule.authen.controller;
 
 import com.nimbusds.jose.JOSEException;
+import com.vule.authen.annotation.RequirePermission;
 import com.vule.authen.dto.request.AuthenticationRequest;
 import com.vule.authen.dto.request.RefreshRequest;
 import com.vule.authen.dto.request.StaffCreationRequest;
@@ -83,11 +84,11 @@ public class AuthController {
 
     @PostMapping("/users")
     ApiResponse<?> createStaff(@RequestBody StaffCreationRequest request) throws UnauthorizedException {
-        log.info("[AUTH][CREATE] username={}", request.getUserName());
+        log.info("[AUTH][CREATE] username={}", request.getUsername());
 
         var result = authenticationService.createStaff(request);
 
-        log.info("[AUTH][CREATE] username={} -> success", request.getUserName());
+        log.info("[AUTH][CREATE] username={} -> success", request.getUsername());
         return ApiResponse.builder().message(result).build();
     }
 }

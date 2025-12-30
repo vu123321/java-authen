@@ -41,7 +41,17 @@ public class RolePermissionService {
                 .distinct()
                 .toList();
 
-        List<Permission> permissions = codes.isEmpty() ? List.of() : permissionRepo.findByCodeIn(codes);
+        List<Permission> permissions = permissionCodes.stream().map(
+                code -> permissionRepo.findByCode(code)
+                        .orElseGet(
+                                () -> {
+                                    Permission p = new Permission();
+                                    p.setCode(code);
+                                    p.setName(permissionDisplayName(code));
+                                    return permissionRepo.save(p);
+                                }
+                        )
+        ).toList();
 
         if (permissions.size() != codes.size()) {
             Set<String> found = permissions.stream().map(Permission::getCode).collect(Collectors.toSet());

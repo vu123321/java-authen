@@ -38,6 +38,13 @@ public class AuthorInterceptor implements HandlerInterceptor {
 
         log.info("[PRE]:  {} {}", request.getMethod(), request.getRequestURI());
 
+        String auth = request.getHeader("Authorization");
+        if (auth == null || auth.isBlank()) {
+            log.warn("[PRE] = Missing Authorization header");
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            return false;
+        }
+
         JwtAuthenticationToken jwtAuthenToken = (JwtAuthenticationToken)SecurityContextHolder.getContext().getAuthentication();
         String role = jwtAuthenToken.getToken().getClaim("role");
 
@@ -56,13 +63,6 @@ public class AuthorInterceptor implements HandlerInterceptor {
         });
         if (!match) {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            return false;
-        }
-
-        String auth = request.getHeader("Authorization");
-        if (auth == null || auth.isBlank()) {
-            log.warn("[PRE] = Missing Authorization header");
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return false;
         }
 

@@ -2,7 +2,10 @@ package com.vule.authen.service.impl;
 
 import com.vule.authen.dto.request.CreateOrderRequest;
 import com.vule.authen.dto.response.CreateOrderResponse;
-import com.vule.authen.entity.*;
+import com.vule.authen.entity.Ingredient;
+import com.vule.authen.entity.Order;
+import com.vule.authen.entity.OrderDetail;
+import com.vule.authen.entity.User;
 import com.vule.authen.exception.AppException;
 import com.vule.authen.exception.ErrorCode;
 import com.vule.authen.repository.IngredientRepository;
@@ -15,11 +18,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -42,15 +47,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        JwtAuthenticationToken jwtAuthenToken = (JwtAuthenticationToken)SecurityContextHolder.getContext().getAuthentication();
-        String role = jwtAuthenToken.getToken().getClaim("role");
-
         log.info("[ORDER][CREATE] requested by username={}", username);
-
-        if (!Objects.equals(role, UserRole.MANAGER.toString())) {
-            log.warn("[ORDER][CREATE] forbidden: user={} role={}", username, role);
-            throw new RuntimeException();
-        }
 
         Map<String, Integer> merged = new LinkedHashMap<>();
         for (CreateOrderRequest.Item it : createOrderRequest.getItems()) {

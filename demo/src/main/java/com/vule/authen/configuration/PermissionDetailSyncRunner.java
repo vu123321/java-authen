@@ -32,7 +32,13 @@ public class PermissionDetailSyncRunner implements ApplicationRunner {
 
             String action = rp.action();
 
-            Permission permission = permissionRepository.findByCode(code).orElseThrow();
+            Permission permission = permissionRepository.findByCode(code)
+                    .orElseGet(() -> {
+                        Permission p = new Permission();
+                        p.setCode(code);
+                        p.setName(code);
+                        return permissionRepository.save(p);
+                    });
 
             var ppc = mappingInfo.getPathPatternsCondition();
             if (ppc == null) {

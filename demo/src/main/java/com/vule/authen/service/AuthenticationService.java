@@ -245,29 +245,29 @@ public class AuthenticationService {
         }
     }
 
-    private SignedJWT verifyToken(String token, boolean isRefresh) throws JOSEException, ParseException {
-        JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
-
-        SignedJWT signedJWT = SignedJWT.parse(token);
-
-        Date expiryTime = (isRefresh)
-                ? new Date(signedJWT
-                .getJWTClaimsSet()
-                .getIssueTime()
-                .toInstant()
-                .plus(REFRESHABLE_DURATION, ChronoUnit.HOURS)
-                .toEpochMilli())
-                : signedJWT.getJWTClaimsSet().getExpirationTime();
-
-        var verified = signedJWT.verify(verifier);
-
-        if (!(verified && expiryTime.after(new Date()))) throw new AppException(ErrorCode.UNAUTHENTICATED);
-
-        if (invalidatedTokenRepository.existsById(signedJWT.getJWTClaimsSet().getJWTID()))
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
-
-        return signedJWT;
-    }
+//    private SignedJWT verifyToken(String token, boolean isRefresh) throws JOSEException, ParseException {
+//        JWSVerifier verifier = new MACVerifier(SIGNER_KEY.getBytes());
+//
+//        SignedJWT signedJWT = SignedJWT.parse(token);
+//
+//        Date expiryTime = (isRefresh)
+//                ? new Date(signedJWT
+//                .getJWTClaimsSet()
+//                .getIssueTime()
+//                .toInstant()
+//                .plus(REFRESHABLE_DURATION, ChronoUnit.HOURS)
+//                .toEpochMilli())
+//                : signedJWT.getJWTClaimsSet().getExpirationTime();
+//
+//        var verified = signedJWT.verify(verifier);
+//
+//        if (!(verified && expiryTime.after(new Date()))) throw new AppException(ErrorCode.UNAUTHENTICATED);
+//
+//        if (invalidatedTokenRepository.existsById(signedJWT.getJWTClaimsSet().getJWTID()))
+//            throw new AppException(ErrorCode.UNAUTHENTICATED);
+//
+//        return signedJWT;
+//    }
 
     @Transactional
     public String register(UserCreationRequest request) {
@@ -301,34 +301,27 @@ public class AuthenticationService {
     }
 
     public String createStaff(StaffCreationRequest request) {
-        String managerUsername = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        log.info("[managerUsername] {}", managerUsername);
-
-        User manager = userRepository.findByUserName(managerUsername)
-                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
-
-        log.info("[manager.getRole] ={}", manager.getUserRole());
-
-        if (manager.getUserRole() != UserRole.MANAGER) {
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
-        }
-
-        if (userRepository.existsByUserName(request.getUserName())) {
+        if (userRepository.existsByUserName(request.getUsername())) {
             log.info("[!existsByUserName] ");
             throw new AppException(ErrorCode.UNAUTHENTICATED);
 
         }
+        Restaurant restaurant = new Restaurant();
+        restaurant.setCode(request.getRestaurantCode());
+        restaurant.setName(request.getRestaurantName());
+        restaurant.setAddress(request.getRestaurantAddress());
+        restaurant = restaurantRepository.save(restaurant);
 
         User staff = new User();
-        staff.setUserName(request.getUserName());
+        staff.setUserName(request.getUsername());
         staff.setPassword(passwordEncoder.encode(request.getPassword()));
-        staff.setFullname(request.getFullname());
+        staff.setFullname(request.getFullName());
         staff.setPhone(request.getPhone());
-        staff.setAddress(request.getAddress());
+        staff.setAddress(request.getRestaurantAddress());
         staff.setUserRole(UserRole.STAFF);
 
-        staff.setRestaurant(manager.getRestaurant());
+        staff.setRestaurant(restaurant);
 
         userRepository.save(staff);
 

@@ -1,19 +1,21 @@
 package com.vule.authen.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Getter
 @Setter
 @Entity
+@Builder
 @Table(
         name = "restaurants", uniqueConstraints = {
         @UniqueConstraint(columnNames = "code")
 }
 )
+@NoArgsConstructor
+@AllArgsConstructor
 
 public class Restaurant {
 
