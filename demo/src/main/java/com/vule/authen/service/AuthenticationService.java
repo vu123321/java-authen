@@ -2,15 +2,17 @@ package com.vule.authen.service;
 
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
-import com.nimbusds.jose.crypto.MACVerifier;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import com.vule.authen.dto.request.*;
+import com.vule.authen.dto.request.AuthenticationRequest;
+import com.vule.authen.dto.request.RefreshRequest;
+import com.vule.authen.dto.request.StaffCreationRequest;
+import com.vule.authen.dto.request.UserCreationRequest;
 import com.vule.authen.dto.response.AuthenticationResponse;
 import com.vule.authen.entity.RefreshToken;
 import com.vule.authen.entity.Restaurant;
-import com.vule.authen.entity.UserRole;
 import com.vule.authen.entity.User;
+import com.vule.authen.entity.UserRole;
 import com.vule.authen.exception.AppException;
 import com.vule.authen.exception.ErrorCode;
 import com.vule.authen.exception.UnauthorizedException;
@@ -24,7 +26,6 @@ import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -198,6 +199,7 @@ public class AuthenticationService {
             throw new RuntimeException(e);
         }
     }
+
     private void saveRefreshTokenToDb(String refreshToken, String userId) {
         try {
             JWTClaimsSet claims = SignedJWT.parse(refreshToken).getJWTClaimsSet();
