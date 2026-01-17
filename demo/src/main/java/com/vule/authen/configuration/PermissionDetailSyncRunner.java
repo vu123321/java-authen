@@ -2,10 +2,9 @@ package com.vule.authen.configuration;
 
 import com.vule.authen.annotation.RequirePermission;
 import com.vule.authen.entity.Permission;
-import com.vule.authen.repository.PermissionDetailRepository;
 import com.vule.authen.repository.PermissionRepository;
 import com.vule.authen.service.PermissionDetailService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
@@ -15,12 +14,24 @@ import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandl
 import java.util.Set;
 
 @Component
-@RequiredArgsConstructor
 public class PermissionDetailSyncRunner implements ApplicationRunner {
 
+
     private final RequestMappingHandlerMapping handlerMapping;
+
     private final PermissionDetailService permissionDetailService;
     private final PermissionRepository permissionRepository;
+
+    public PermissionDetailSyncRunner(
+            @Qualifier("requestMappingHandlerMapping")
+            RequestMappingHandlerMapping handlerMapping,
+            PermissionDetailService permissionDetailService,
+            PermissionRepository permissionRepository
+    ) {
+        this.handlerMapping = handlerMapping;
+        this.permissionDetailService = permissionDetailService;
+        this.permissionRepository = permissionRepository;
+    }
 
     @Override
     public void run(ApplicationArguments args) {
@@ -29,7 +40,6 @@ public class PermissionDetailSyncRunner implements ApplicationRunner {
             if (rp == null) return;
 
             String code = rp.code();
-
             String action = rp.action();
 
             Permission permission = permissionRepository.findByCode(code)
@@ -48,8 +58,15 @@ public class PermissionDetailSyncRunner implements ApplicationRunner {
             Set<String> paths = ppc.getPatternValues();
 
             Set<RequestMethod> methods = mappingInfo.getMethodsCondition().getMethods();
-            if (methods.isEmpty()) methods = Set.of(RequestMethod.GET, RequestMethod.POST, RequestMethod.PUT, RequestMethod.DELETE, RequestMethod.PATCH);
-
+            if (methods.isEmpty()) {
+                methods = Set.of(
+                        RequestMethod.GET,
+                        RequestMethod.POST,
+                        RequestMethod.PUT,
+                        RequestMethod.DELETE,
+                        RequestMethod.PATCH
+                );
+            }
 
             for (String path : paths) {
                 for (RequestMethod m : methods) {
@@ -59,7 +76,6 @@ public class PermissionDetailSyncRunner implements ApplicationRunner {
                             path,
                             m.name()
                     );
-
                 }
             }
         });

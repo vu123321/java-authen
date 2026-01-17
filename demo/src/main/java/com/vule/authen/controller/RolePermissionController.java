@@ -4,7 +4,11 @@ import com.vule.authen.annotation.RequirePermission;
 import com.vule.authen.dto.request.UpdateRolePermissionsRequest;
 import com.vule.authen.dto.response.RolePermissionsResponse;
 import com.vule.authen.service.RolePermissionService;
+import com.vule.authen.utils.ApiLog;
+import com.vule.authen.utils.JsonLogger;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -12,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class RolePermissionController {
 
+    private static final Logger log = LoggerFactory.getLogger(RolePermissionController.class);
     private final RolePermissionService service;
 
     @PutMapping("/{roleCode}/permissions")
@@ -20,7 +25,22 @@ public class RolePermissionController {
             @PathVariable String roleCode,
             @RequestBody UpdateRolePermissionsRequest req
     ) {
-        return service.replaceRolePermissions(roleCode, req.getPermissionCodes());
+
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Update role permissions - controller")
+                .lineCode("RolePermissionController#updateRolePermissions")
+        );
+
+        RolePermissionsResponse res =
+                service.replaceRolePermissions(roleCode, req.getPermissionCodes());
+
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Update role permissions - success")
+                .lineCode("RolePermissionController#updateRolePermissions")
+        );
+
+        return res;
     }
 }
-

@@ -20,6 +20,8 @@ import com.vule.authen.repository.InvalidatedTokenRepository;
 import com.vule.authen.repository.RefreshTokenRepository;
 import com.vule.authen.repository.RestaurantRepository;
 import com.vule.authen.repository.UserRepository;
+import com.vule.authen.utils.ApiLog;
+import com.vule.authen.utils.JsonLogger;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -61,23 +63,49 @@ public class AuthenticationService {
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) throws ParseException {
 
-        log.info("[AUTHENTICATE] username={}", request.getUsername());
+        String username = request.getUsername();
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Authenticate start")
+                .username(username)
+                .lineCode("AuthenticationService#authenticate")
+        );
 
         var user = userRepository
-                .findByUserName(request.getUsername())
+                .findByUserName(username)
                 .orElseThrow(() -> {
-                    log.warn("[AUTHENTICATE] username={} not found", request.getUsername());
+
+                    // ERROR + đúng format yêu cầu
+                    JsonLogger.error(log, ApiLog.builder()
+                                    .type("service")
+                                    .message("data username: " + username + " not found from DB")
+                                    .username(username)
+                                    .lineCode("AuthenticationService#authenticate"),
+                            null
+                    );
                     return new AppException(ErrorCode.UNAUTHENTICATED);
                 });
 
         boolean authenticated = passwordEncoder.matches(request.getPassword(), user.getPassword());
 
         if (!authenticated) {
-            log.warn("[AUTHENTICATE] username={} wrong password", request.getUsername());
+
+            JsonLogger.error(log, ApiLog.builder()
+                            .type("service")
+                            .message("Wrong password for username: " + username)
+                            .username(username)
+                            .lineCode("AuthenticationService#authenticate"),
+                    null
+            );
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
-        log.info("[AUTHENTICATE] username={} authenticated successfully", request.getUsername());
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Authenticated successfully")
+                .username(username)
+                .lineCode("AuthenticationService#authenticate")
+        );
 
         var token = generateToken(user);
         var refreshToken = generateRefreshToken(user);
@@ -90,14 +118,33 @@ public class AuthenticationService {
                 .build();
     }
 
-
     @Transactional
     public void logout(String userId) {
         try {
+            JsonLogger.info(log, ApiLog.builder()
+                    .type("api")
+                    .message("Start logout")
+                    .username(userId)
+                    .lineCode("AuthenticationService#logout")
+            );
+
             refreshTokenRepository.revokeByUserId(userId);
 
+            JsonLogger.info(log, ApiLog.builder()
+                    .type("api")
+                    .message("Refresh token revoked successfully")
+                    .username(userId)
+                    .lineCode("AuthenticationService#logout")
+            );
+
         } catch (AppException exception) {
-            log.info("Token already expired");
+            JsonLogger.error(log, ApiLog.builder()
+                            .type("service")
+                            .message("Error when revoking refresh token, userId=" + userId)
+                            .username(userId)
+                            .lineCode("AuthenticationService#logout"),
+                    exception
+            );
         }
     }
 
@@ -105,51 +152,108 @@ public class AuthenticationService {
     public AuthenticationResponse refreshToken(RefreshRequest request) throws ParseException, JOSEException {
         SignedJWT signedJWT = SignedJWT.parse(request.getRefreshToken());
 
-        log.info("[REFRESH] refresh token request received");
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Refresh token request received")
+                .lineCode("AuthenticationService#refreshToken")
+        );
 
         JWTClaimsSet claims = signedJWT.getJWTClaimsSet();
 
         if (claims.getExpirationTime() == null || claims.getExpirationTime().toInstant().isBefore(Instant.now())) {
+            JsonLogger.error(log, ApiLog.builder()
+                            .type("service")
+                            .message("Refresh token expired or missing exp claim")
+                            .lineCode("AuthenticationService#refreshToken"),
+                    null
+            );
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
         String jti = claims.getJWTID();
         String userId = claims.getStringClaim("user_id");
 
-        log.info("[REFRESH] jti={}, userId={}", jti, userId);
-        log.info("[REFRESH] claims={}", claims.toJSONObject());
-        log.info("[REFRESH] exp={}, now={}", claims.getExpirationTime(), Date.from(Instant.now()));
-        log.info("[REFRESH] jti={}, userId={}", jti, userId);
-
+        JsonLogger.debug(log, ApiLog.builder()
+                .type("service")
+                .message("Refresh token claims parsed: jti=" + jti + ", userId=" + userId
+                        + ", exp=" + claims.getExpirationTime()
+                        + ", now=" + Date.from(Instant.now()))
+                .lineCode("AuthenticationService#refreshToken")
+        );
 
         if (jti == null || userId == null) {
+            JsonLogger.error(log, ApiLog.builder()
+                            .type("service")
+                            .message("Refresh token missing jti or user_id, jti=" + jti + ", userId=" + userId)
+                            .lineCode("AuthenticationService#refreshToken"),
+                    null
+            );
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
         RefreshToken dbToken = refreshTokenRepository.findByJti(jti)
                 .orElseThrow(() -> {
-                    log.warn("[REFRESH] token not found jti={}", jti);
+                    JsonLogger.error(log, ApiLog.builder()
+                                    .type("service")
+                                    .message("Refresh token not found, jti=" + jti)
+                                    .lineCode("AuthenticationService#refreshToken"),
+                            null
+                    );
                     return new AppException(ErrorCode.UNAUTHENTICATED);
                 });
 
         if (dbToken.isRevoked()) {
+            JsonLogger.error(log, ApiLog.builder()
+                            .type("service")
+                            .message("Refresh token already revoked, jti=" + jti)
+                            .lineCode("AuthenticationService#refreshToken"),
+                    null
+            );
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
-        log.info("[REFRESH] dbToken revoked={}, expiredAt={}", dbToken.isRevoked(), dbToken.getExpiredAt());
 
+        JsonLogger.info(log, ApiLog.builder()
+                .type("service")
+                .message("Refresh token in DB: revoked=" + dbToken.isRevoked()
+                        + ", expiredAt=" + dbToken.getExpiredAt())
+                .lineCode("AuthenticationService#refreshToken")
+        );
 
         if (dbToken.getExpiredAt().isBefore(Instant.now())) {
+            JsonLogger.error(log, ApiLog.builder()
+                            .type("service")
+                            .message("Refresh token record expired in DB, jti=" + jti)
+                            .lineCode("AuthenticationService#refreshToken"),
+                    null
+            );
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
         if (!userId.equals(dbToken.getUserId())) {
+
+            JsonLogger.error(log, ApiLog.builder()
+                            .type("service")
+                            .message("user_id in token does not match DB, tokenUserId=" + userId
+                                    + ", dbUserId=" + dbToken.getUserId())
+                            .lineCode("AuthenticationService#refreshToken"),
+                    null
+            );
             throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
 
         refreshTokenRepository.revokeByJti(jti);
 
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+                .orElseThrow(() -> {
+                    JsonLogger.error(log, ApiLog.builder()
+                                    .type("service")
+                                    .message("data username: " + userId + " not found from DB")
+                                    .username(userId)
+                                    .lineCode("AuthenticationService#refreshToken"),
+                            null
+                    );
+                    return new AppException(ErrorCode.USER_NOT_EXISTED);
+                });
 
         String newAccessToken = generateToken(user);
         String newRefreshToken = generateRefreshToken(user);
@@ -164,6 +268,12 @@ public class AuthenticationService {
 
         refreshTokenRepository.save(newEntity);
 
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Refresh token success, userId=" + userId)
+                .username(userId)
+                .lineCode("AuthenticationService#refreshToken")
+        );
         return AuthenticationResponse.builder()
                 .token(newAccessToken)
                 .refreshToken(newRefreshToken)
@@ -250,11 +360,32 @@ public class AuthenticationService {
     @Transactional
     public String register(UserCreationRequest request) {
 
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Register user start")
+                .username(request.getUserName())
+                .lineCode("AuthenticationService#register")
+        );
+
         if (userRepository.existsByUserName(request.getUserName())) {
+            JsonLogger.error(log, ApiLog.builder()
+                            .type("service")
+                            .message("Username already exists: " + request.getUserName())
+                            .username(request.getUserName())
+                            .lineCode("AuthenticationService#register"),
+                    null
+            );
             throw new UnauthorizedException();
         }
 
         if (restaurantRepository.existsByCode(request.getRestaurantCode())) {
+            JsonLogger.error(log, ApiLog.builder()
+                            .type("service")
+                            .message("Restaurant code already exists: " + request.getRestaurantCode())
+                            .username(request.getUserName())
+                            .lineCode("AuthenticationService#register"),
+                    null
+            );
             throw new UnauthorizedException();
         }
 
@@ -275,16 +406,38 @@ public class AuthenticationService {
 
         userRepository.save(user);
 
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Register user success")
+                .username(request.getUserName())
+                .lineCode("AuthenticationService#register")
+        );
+
         return "User registered successfully!";
     }
 
     public String createStaff(StaffCreationRequest request) {
 
-        if (userRepository.existsByUserName(request.getUsername())) {
-            log.info("[!existsByUserName] ");
-            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        String username = request.getUsername();
 
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Create staff start")
+                .username(username)
+                .lineCode("AuthenticationService#createStaff")
+        );
+
+        if (userRepository.existsByUserName(username)) {
+            JsonLogger.error(log, ApiLog.builder()
+                            .type("service")
+                            .message("Username already exists for staff: " + username)
+                            .username(username)
+                            .lineCode("AuthenticationService#createStaff"),
+                    null
+            );
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
         }
+
         Restaurant restaurant = new Restaurant();
         restaurant.setCode(request.getRestaurantCode());
         restaurant.setName(request.getRestaurantName());
@@ -292,16 +445,22 @@ public class AuthenticationService {
         restaurant = restaurantRepository.save(restaurant);
 
         User staff = new User();
-        staff.setUserName(request.getUsername());
+        staff.setUserName(username);
         staff.setPassword(passwordEncoder.encode(request.getPassword()));
         staff.setFullname(request.getFullName());
         staff.setPhone(request.getPhone());
         staff.setAddress(request.getRestaurantAddress());
         staff.setUserRole(UserRole.STAFF);
-
         staff.setRestaurant(restaurant);
 
         userRepository.save(staff);
+
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Create staff success")
+                .username(username)
+                .lineCode("AuthenticationService#createStaff")
+        );
 
         return "Staff created successfully!";
     }

@@ -10,6 +10,8 @@ import com.vule.authen.dto.response.ApiResponse;
 import com.vule.authen.dto.response.AuthenticationResponse;
 import com.vule.authen.exception.UnauthorizedException;
 import com.vule.authen.service.AuthenticationService;
+import com.vule.authen.utils.ApiLog;
+import com.vule.authen.utils.JsonLogger;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -33,13 +35,24 @@ public class AuthController {
     AuthenticationService authenticationService;
 
     @PostMapping("/login")
-    ApiResponse<AuthenticationResponse> authenticate(@RequestBody AuthenticationRequest request) throws ParseException {
-        log.info("[AUTH][LOGIN] username={}", request.getUsername());
+    ApiResponse<AuthenticationResponse> authenticate(@RequestBody AuthenticationRequest request)
+            throws ParseException, InterruptedException {
+
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Login request")
+                .username(request.getUsername())
+                .lineCode("AuthController#authenticate")
+        );
 
         var result = authenticationService.authenticate(request);
 
-        log.info("[AUTH][LOGIN] username={} -> success={}",
-                request.getUsername(), result.isAuthenticated());
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Login result: success=" + result.isAuthenticated())
+                .username(request.getUsername())
+                .lineCode("AuthController#login")
+        );
 
         return ApiResponse.<AuthenticationResponse>builder().result(result).build();
     }
@@ -47,11 +60,19 @@ public class AuthController {
     @PostMapping("/refresh")
     ApiResponse<AuthenticationResponse> authenticate(@RequestBody RefreshRequest request)
             throws ParseException, JOSEException {
-        log.info("[AUTH][REFRESH] refreshToken received");
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Refresh token request")
+                .lineCode("AuthController#authenticate")
+        );
 
         var result = authenticationService.refreshToken(request);
 
-        log.info("[AUTH][REFRESH] refresh success");
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Refresh result: success=" + result.isAuthenticated())
+                .lineCode("AuthController#refresh")
+        );
         return ApiResponse.<AuthenticationResponse>builder().result(result)
                 .message("Success")
                 .build();
@@ -61,11 +82,21 @@ public class AuthController {
     public ApiResponse<Void> logout(@AuthenticationPrincipal Jwt jwt) {
 
         String userId = jwt.getClaim("user_id");
-        log.info("[AUTH][LOGOUT] userId={}", userId);
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Logout request")
+                .username(userId)
+                .lineCode("AuthController#logout")
+        );
 
         authenticationService.logout(userId);
 
-        log.info("[AUTH][LOGOUT] userId={} -> success", userId);
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Logout success")
+                .username(userId)
+                .lineCode("AuthController#logout")
+        );
 
         return ApiResponse.<Void>builder()
                 .message("Logout success")
@@ -74,21 +105,44 @@ public class AuthController {
 
     @PostMapping("/register")
     ApiResponse<?> registerUser(@RequestBody UserCreationRequest request) throws UnauthorizedException {
-        log.info("[AUTH][REGISTER] username={}", request.getUserName());
+
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Register user request, username=" + request.getUserName())
+                .username(request.getUserName())
+                .lineCode("AuthController#registerUser")
+        );
 
         var result = authenticationService.register(request);
 
-        log.info("[AUTH][REGISTER] username={} -> success", request.getUserName());
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Register user success, username=" + request.getUserName())
+                .username(request.getUserName())
+                .lineCode("AuthController#registerUser")
+        );
         return ApiResponse.builder().message(result).build();
     }
 
     @PostMapping("/users")
     ApiResponse<?> createStaff(@RequestBody StaffCreationRequest request) throws UnauthorizedException {
-        log.info("[AUTH][CREATE] username={}", request.getUsername());
+
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Create staff request, username=" + request.getUsername())
+                .username(request.getUsername())
+                .lineCode("AuthController#createStaff")
+        );
 
         var result = authenticationService.createStaff(request);
 
-        log.info("[AUTH][CREATE] username={} -> success", request.getUsername());
+        JsonLogger.info(log, ApiLog.builder()
+                .type("api")
+                .message("Create staff success, username=" + request.getUsername())
+                .username(request.getUsername())
+                .lineCode("AuthController#createStaff")
+        );
         return ApiResponse.builder().message(result).build();
     }
 }
+

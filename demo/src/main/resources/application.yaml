@@ -1,23 +1,47 @@
 server:
-    port: 8080
+  port: 8080
+  shutdown: graceful
+
 spring:
   application:
     name: authen-service
-    main:
-      allow-circular-references: true
+  main:
+    allow-circular-references: true
+
   datasource:
     url: jdbc:mysql://127.0.0.1:3306/mydb?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
+
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
+
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
 jwt:
   signerKey: "323efba8b6dea3819336c924735dd0517c46c6ee9df19d8d3c6f9ac2f6a4dfdc"
-  valid-duration: 1000 #in second
+  valid-duration: 1000 # in second
   refreshable-duration: 24 # in hours
+
+logging:
+  level:
+    org.springframework.web: INFO
+    org.springframework.web.servlet.DispatcherServlet: INFO
+    org.springframework.web.servlet.mvc.method.annotation.HttpEntityMethodProcessor: INFO
+
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    prometheus:
+      access: read-only
