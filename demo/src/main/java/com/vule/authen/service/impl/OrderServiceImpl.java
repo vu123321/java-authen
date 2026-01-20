@@ -2,6 +2,8 @@ package com.vule.authen.service.impl;
 
 import com.vule.authen.dto.request.CreateOrderRequest;
 import com.vule.authen.dto.response.CreateOrderResponse;
+import com.vule.authen.dto.response.OrderResponse;
+import com.vule.authen.dto.response.PageResponse;
 import com.vule.authen.entity.Ingredient;
 import com.vule.authen.entity.Order;
 import com.vule.authen.entity.OrderDetail;
@@ -13,13 +15,23 @@ import com.vule.authen.repository.OrderDetailRepository;
 import com.vule.authen.repository.OrderRepository;
 import com.vule.authen.repository.UserRepository;
 import com.vule.authen.service.OrderService;
+import com.vule.authen.service.UserService;
 import com.vule.authen.utils.ApiLog;
 import com.vule.authen.utils.JsonLogger;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.catalina.util.StringUtil;
+import org.apache.commons.lang3.StringUtils;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -35,6 +47,7 @@ public class OrderServiceImpl implements OrderService {
     IngredientRepository ingredientRepository;
     OrderRepository orderRepository;
     OrderDetailRepository orderDetailRepository;
+    UserService userService;
 
     @Override
     public CreateOrderResponse createOrder(CreateOrderRequest createOrderRequest) {
@@ -253,5 +266,140 @@ public class OrderServiceImpl implements OrderService {
 
         return response;
     }
+
+    @Override
+    public PageResponse<OrderResponse> list(Integer page, Integer size, String sort) {
+
+        // default paging
+        int pageNumber = (page == null || page < 0) ? 0 : page;
+        int pageSize = (size == null || size <= 0) ? 10 : size;
+
+        // allowed sort fields (Order + nested User)
+        Set<String> allowedSortFields = Set.of(
+                "createdAt",
+                "updatedAt",
+                "orderCode",
+                "status",
+                "user.userName",
+                "user.fullname"
+        );
+
+        // default sort
+        Sort sortObj = Sort.by("createdAt").descending();
+
+        if (sort != null && !sort.isBlank()) {
+            String[] parts = sort.split(",");
+            String field = parts[0].trim();
+            String direction = (parts.length > 1) ? parts[1].trim().toLowerCase() : "asc";
+
+            if (allowedSortFields.contains(field)) {
+                sortObj = "desc".equals(direction)
+                        ? Sort.by(field).descending()
+                        : Sort.by(field).ascending();
+            }
+        }
+
+        Pageable pageable = PageRequest.of(pageNumber, pageSize, sortObj);
+
+        User currentUser = userService.getCurrentUser();
+        String restaurantId = currentUser.getRestaurant().getId();
+
+        //restaurant
+        Page<Order> pageData = orderRepository.findByRestaurant_IdAndDeletedAtIsNull(restaurantId, pageable);
+
+        // Map entity -> response
+        List<OrderResponse> data = pageData.getContent().stream()
+                .map(order -> {
+                    OrderResponse res = new OrderResponse();
+                    res.setId(order.getId());
+                    res.setOrderCode(order.getOrderCode());
+                    res.setStatus(String.valueOf(order.getStatus()));
+                    res.setCreatedAt(String.valueOf(order.getCreatedAt()));
+
+                    res.setUsername(order.getUser().getUserName());
+                    res.setUserId(order.getUser().getId());
+
+                    res.setRestaurantId(order.getRestaurant().getId());
+                    return res;
+                })
+                .toList();
+
+        // build response
+        PageResponse<OrderResponse> response = new PageResponse<>();
+        response.setPage(pageNumber);
+        response.setSize(pageSize);
+        response.setTotal(pageData.getTotalElements());
+        response.setItems(data);
+
+        return response;
+    }
+
+    @Override
+    public OrderResponse getById(String id) {
+        long start = System.currentTimeMillis();
+
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        log.info("username = {}", username);
+
+        JsonLogger.info(log, ApiLog.builder()
+                .type("service")
+                .message("OrderService.getById called")
+                .username(username)
+                .context(id)
+                .lineCode("OrderServiceImpl#getById")
+        );
+
+        if (id == null || id.isBlank()) {
+            JsonLogger.warn(log, ApiLog.builder()
+                    .type("service")
+                    .message("Order getById failed: invalid id")
+                    .username(username)
+                    .context(id)
+                    .lineCode("OrderServiceImpl#getById")
+            );
+            throw new AppException(ErrorCode.INVALID_REQUEST);
+        }
+
+        User user = userRepository.findByUserName(username)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHENTICATED));
+
+        String restaurantId = user.getRestaurant().getId();
+
+
+        Order order = orderRepository.findByIdAndRestaurant_Id(id, restaurantId)
+                .orElseThrow(() -> new AppException(ErrorCode.UNAUTHORIZED));
+
+        OrderResponse res = OrderResponse.builder()
+                .id(order.getId())
+                .orderCode(order.getOrderCode())
+                .status(order.getStatus() != null ? order.getStatus().name() : null)
+                .createdAt(order.getCreatedAt() != null ? order.getCreatedAt().toString() : null)
+                .userId(order.getUser() != null ? order.getUser().getId() : null)
+                .username(order.getUser() != null ? order.getUser().getUserName() : null)
+                .restaurantId(order.getRestaurant() != null ? order.getRestaurant().getId() : null)
+                .build();
+
+        JsonLogger.info(log, ApiLog.builder()
+                .type("service")
+                .message("OrderService.getById success")
+                .username(username)
+                .context(res)
+                .duration(System.currentTimeMillis() - start)
+                .lineCode("OrderServiceImpl#getById")
+        );
+
+        return res;
+    }
+
+    public String getCurrentUserIdFromClaim() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+
+        if (auth instanceof JwtAuthenticationToken jwtAuth) {
+            Jwt jwt = jwtAuth.getToken();
+            return jwt.getClaimAsString("user_id");
+        }
+        return StringUtils.EMPTY;
+    }
 }
+
 

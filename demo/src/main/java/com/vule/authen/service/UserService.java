@@ -54,4 +54,18 @@ public class UserService {
 
         return userMapper.toUserResponse(user);
     }
+
+    public String getCurrentUserName() {
+
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+        return auth.getName();
+    }
+
+    public User getCurrentUser() {
+        String userId = getCurrentUserName();
+        return userRepository.findByUserName(userId).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+    }
 }
