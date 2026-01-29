@@ -11,7 +11,7 @@ clients:
 scrape_configs:
   - job_name: docker-logs
     static_configs:
-      - targets: [localhost]
+      - targets: [ localhost ]
         labels:
           job: docker
           __path__: /var/lib/docker/containers/*/*-json.log
