@@ -75,7 +75,7 @@ public class AuthenticationService {
                 .findByUserName(username)
                 .orElseThrow(() -> {
 
-                    // ERROR + đúng format yêu cầu
+                    // ERROR
                     JsonLogger.error(log, ApiLog.builder()
                                     .type("service")
                                     .message("data username: " + username + " not found from DB")

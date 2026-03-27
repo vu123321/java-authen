@@ -42,7 +42,9 @@ public class AuthorInterceptor implements HandlerInterceptor {
             "/api/auth/refresh",
             "/api/auth/register",
             "/api/auth/users",
-            "/api/ingredients"
+            "/api/ingredients",
+            "/api/order/*",
+            "/api/order"
     );
 
 
@@ -213,5 +215,4 @@ public class AuthorInterceptor implements HandlerInterceptor {
         }
         return sb.toString();
     }
-
 }
